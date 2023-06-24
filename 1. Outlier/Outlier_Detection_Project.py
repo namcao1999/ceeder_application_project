@@ -37,9 +37,9 @@ WITH dataset AS (
         schema_version = "21.22" OR schema_version = "22.23"
 ),
 
-Ds as
+Ds as 
 (
-SELECT
+SELECT 
 entity_id,
     mapping.region as Region,
     DATE_SUB(
@@ -309,11 +309,11 @@ FROM
     dataset
     INNER JOIN `aiesec-gfb-automations-prod.financial_data.iso_region_mapping` as mapping ON (mapping.iso = entity_id)
 WHERE
-    data_age = 1
+    data_age = 1    
 
 )
 
-SELECT *
+SELECT * 
 FROM Ds;
 """
 
@@ -414,7 +414,7 @@ end_date = td
 
 # Define a list of entity IDs to check
 # entity_ids = df.entity_id.unique()
-entity_ids = ['ARG', 'BOL', 'BRA', 'CHL', 'COL', 'ECU', 'GTM', 'MEX', 'NIC', 'PAN', 'USA', 'VEN', 'AUS', 'BGD', 'HKG', 'IDN', 'IND', 'JPN', 'KOR', 'LKA', 'MYS', 'PAK', 'PHL', 'THA', 'TWN', 'VNM', 'ALB', 'ARM', 'AUT', 'AZE', 'BEL', 'BGR', 'BIH', 'CHE', 'CZE', 'DEU', 'DNK', 'ESP', 'FIN', 'GBR', 'GEO', 'GRC', 'HUN', 'ISL', 'ITA', 'LTU', 'NLD', 'NOR', 'POL', 'PRT', 'ROU', 'RUS', 'SRB', 'SVK', 'SWE', 'TUR', 'UKR', 'ARE', 'BEN', 'BFA', 'CIV', 'EGY', 'GHA', 'JOR', 'LBN', 'LBR', 'MAR', 'NGA', 'RWA', 'SEN', 'TGO', 'TUN', 'HRV', 'MMR', 'TZA']
+entity_ids = ['BEL', 'BGR', 'BIH', 'CHE', 'CZE', 'DEU', 'DNK', 'ESP', 'FIN', 'GBR', 'GEO', 'GRC', 'HUN', 'ISL', 'ITA', 'LTU', 'NLD', 'NOR', 'POL', 'PRT', 'ROU', 'RUS', 'SRB', 'SVK', 'SWE', 'TUR', 'UKR', 'ARE', 'BEN', 'BFA', 'CIV', 'EGY', 'GHA', 'JOR', 'LBN', 'LBR', 'MAR', 'NGA', 'RWA', 'SEN', 'TGO', 'TUN', 'HRV', 'MMR', 'TZA']
 
 # Define a list of accounts to check
 check_accounts =['Bank Account', 'Petty Cash', 'Long Term Assets (Reserves)', 'Long Term Assets (Financial Property)', 'Long Term Receivables: External (Partners)', 'Short Term Receivables: External (Members)', 'Short Term Receivables: External (Youth)', 'Short Term Receivables: External (Partners)', 'Long Term Assets (Property)', 'Long Term Assets (Other)', 'Long Term Liabilities: External (Partners)', 'Long Term Liabilities: External (Other Externals)', 'Short Term Liabilities: External (Members)', 'Short Term Liabilities: External (Other Externals)', 'Prepaid Expenses', 'Allowance for Uncollectible Accounts (contra account)', 'Prepaid Incomes', 'Miscellaneous Revenue', 'Uncollectible Accounts Costs', 'Miscellaneous Costs', 'Overhead Costs: (HR)']
@@ -490,7 +490,7 @@ for file_name in file_names:
 information_df = pd.merge(result_dfs[0], result_dfs[1], on=['entity_id', 'entity_name', 'Region'])
 
 # Print the result data frame
-print(information_df)
+print(information_df) 
 
 # Set up the credentials
 creds = None
@@ -505,14 +505,14 @@ iqr_dictionary = [{"cluster":"Cluster 1","first_quantile":25, "third_quantile":7
                   {"cluster":"Cluster 2","first_quantile":20, "third_quantile":80, "threshold":1.6},
                   {"cluster":"Cluster 3","first_quantile":40, "third_quantile":60, "threshold":1.2}]
 final_df = pd.DataFrame()
-
 # Loop through each unique entity ID
-for entity_id in information_df['entity_id'].unique():
+for entity_id in entity_ids:
+    print(entity_id)
     # Filter the DataFrame by the current entity ID
     entity_df = df[df['entity_id'] == entity_id]
 
     # Get the corresponding email address and entity name
-
+    name = information_df.loc[information_df['entity_id'] == entity_id, 'name'].iloc[0]
     email_address = information_df.loc[information_df['entity_id'] == entity_id, 'email_address'].iloc[0]
     entity_name = information_df.loc[information_df['entity_id'] == entity_id, 'entity_name'].iloc[0]
     cluster = information_df.loc[information_df['entity_id'] == entity_id, 'Cluster'].iloc[0]
@@ -520,12 +520,12 @@ for entity_id in information_df['entity_id'].unique():
     selected_entity_df = selected_entity_data(entity_df, entity_id, currency_code, start_date, end_date)
 
     if cluster == "Cluster 1":
-            iqr_values = iqr_dictionary[0]
+            iqr_values = iqr_dictionary[0]            
     elif cluster == "Cluster 2":
             iqr_values = iqr_dictionary[1]
     elif cluster == "Cluster 3":
             iqr_values = iqr_dictionary[2]
-
+    
     first_quantile = iqr_values["first_quantile"]
     third_quantile = iqr_values["third_quantile"]
     thres_hold = iqr_values["threshold"]
@@ -550,14 +550,56 @@ for entity_id in information_df['entity_id'].unique():
         # Sort the output DataFrame by entity ID and outlier position
     output = output.sort_values(['account','submitted_date'])
     final_df = pd.concat([final_df, output])
+    output.to_excel('outliers_detection_result.xlsx')
     output = pd.DataFrame()
+    
+    # Compose the message
+    msg = MIMEMultipart()
+    msg['to'] = email_address
+    msg['subject'] = f"{entity_name} Test send CSV attachment of Outlier Detection Result"
 
+    # Add body text
+    body = MIMEText(f'''Hello {name},
+
+I would like to share with you the results of the outlier analysis.
+Please find the attached CSV file containing the outlier accounts for the specified 12-month range. These accounts have been identified as unusual or abnormal based on the data within that time period. In simpler terms, they are accounts that show values that are significantly different from what is typically observed.
+
+For this month, we are sending the output for you to check and understand the situation. For the next months, it will be required to provide detailed information and your interpretations regarding why these outliers emerged in the accounts.
+
+Best regards,''', 'plain')
+    msg.attach(body)
+
+    # Add attachment
+    filename = 'outliers_detection_result.xlsx'
+    path = os.path.join(os.getcwd(), filename)
+    attachment = MIMEBase('application', 'octet-stream')
+    with open(path, 'rb') as file:
+        attachment.set_payload(file.read())
+    encoders.encode_base64(attachment)
+    attachment.add_header('Content-Disposition', 'attachment', filename=filename)
+    msg.attach(attachment)
+
+    # Convert message to raw format
+    raw_msg = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+
+    # Send the message
+    try:
+        message = service.users().messages().send(userId='me', body={'raw': raw_msg}).execute()
+        print('Message Id: %s' % message['id'])
+
+        # Delete the file
+        os.remove(path)
+
+    except HttpError as error:
+        print('An error occurred: %s' % error)
+
+#Send the final total dataframe to GFB Chair
 filename = 'outliers_detection_result.xlsx'
 path = os.path.join(current_dir, filename)
 final_df = final_df.to_excel(path)
 
-# emails = ["huynhminhnam1999@gmail.com", "minhnam.huynh@aiesec.net"]
-emails = ["gfbchair@ai.aiesec.org", "maryn@ai.aiesec.org", "shahin.saatov@aiesec.net", "minhnam.huynh@aiesec.net"]
+emails = ["huynhminhnam1999@gmail.com", "minhnam.huynh@aiesec.net"]
+# emails = ["gfbchair@ai.aiesec.org", "maryn@ai.aiesec.org", "shahin.saatov@aiesec.net", "minhnam.huynh@aiesec.net"]
 
 for email_address in emails:
     # Compose the message
@@ -576,10 +618,7 @@ For this month, we are sending the output for you to check and understand the si
 Best regards,
 ''', 'plain')
     msg.attach(body)
-
-    # Add attachment
-    # filename = 'outliers_detection_result.xlsx'
-    # path = os.path.join(current_dir, filename)
+    
     attachment = MIMEBase('application', 'octet-stream')
     with open(path, 'rb') as file:
         attachment.set_payload(file.read())
@@ -595,8 +634,7 @@ Best regards,
         message = service.users().messages().send(userId='me', body={'raw': raw_msg}).execute()
         print('Message Id: %s' % message['id'])
 
-        # Delete the file
-        # os.remove(path)
-
     except HttpError as error:
         print('An error occurred: %s' % error)
+# Delete the file
+os.remove(path)
